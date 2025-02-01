@@ -1,66 +1,80 @@
-# This is a basic workflow to help you get started with Actions
+name: Build ARM64 binaries with Cx_Freeze
 
-name: Cx_Freeze
-
-# Controls when the workflow will run
+# 控制工作流的触发条件
 on:
-  # Triggers the workflow on push or pull request events
   push:
     branches:
-    - master
+      - master
   pull_request:
     branches:
-    - master
-
-  # Allows you to run this workflow manually from the Actions tab
+      - master
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    name: Build binaries on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Build on ARM64 Debian 12
+    runs-on: ubuntu-latest # 使用 GitHub 提供的 Ubuntu 镜像，后面会指定平台
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13]
+        architecture: [amd64, arm64] # 支持 amd64 和 arm64 架构的构建
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      # Checkout 代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           submodules: 'true'
 
+      # 获取 tags 信息
       - name: Fetch tags
         run: git fetch --prune --unshallow --tags
 
+      # 安装 poetry
       - name: Install poetry
         run: pipx install poetry
 
+      # 设置 Python 版本
       - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'poetry'
 
+      # 安装动态版本管理工具
       - name: Setup dynamic versioning
         run: poetry self add poetry-dynamic-versioning
 
+      # 安装依赖
       - name: Install dependencies
         run: |
           poetry install
 
-      - name: Build with Cx_Freeze
-        run: poetry run python setup.py build_exe -b dist
+      # 安装依赖的系统库（如果需要）
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libxml2-dev libxslt-dev python3-dev
 
-      - name: Set VERSION variable for windows
+      # 设置目标架构为 arm64（如果你在 ARM64 环境下构建）
+      - name: Set platform to ARM64
+        run: |
+          echo "Setting platform to ARM64 for build"
+          docker run --platform linux/arm64 -v $PWD:/app python:3.10 bash -c "pip install -r /app/requirements.txt"
+
+      # 使用 Cx_Freeze 构建可执行文件
+      - name: Build with Cx_Freeze
+        run: |
+          poetry run python setup.py build_exe -b dist
+
+      # 设置版本信息
+      - name: Set VERSION variable
         shell: bash
         run: |
           echo "VERSION=`poetry run python tools/version.py`" >> $GITHUB_ENV
 
+      # 上传构建的工件
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JavSP-${{ env.VERSION }}-${{ matrix.os }}
+          name: JavSP-${{ env.VERSION }}-${{ matrix.architecture }}
           path: dist

@@ -1,28 +1,29 @@
-name: Build and Push Docker image
+name: Build 和 Push Docker image
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*'
+      - 'v*'  # 监听以 'v' 开头的标签推送
 
 env:
-  # Use docker.io for Docker Hub if empty
+  # GitHub Container Registry
   REGISTRY: ghcr.io
-  # github.repository as <account>/<repo>
+  # GitHub repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # 使用 Ubuntu 作为运行环境
 
     steps:
+    # 1. 检出代码
     - name: Check out code
       uses: actions/checkout@v4
       with:
-        # Fetch all history for all tags and branches
-        fetch-depth: 0
+        fetch-depth: 0  # 获取所有历史，确保能访问到标签
 
+    # 2. 登录 GitHub Container Registry (GHCR)
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v2
       with:
@@ -30,17 +31,28 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # 3. 创建 Docker 镜像的元数据
     - name: Docker meta
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-    - name: Build and push Docker image
+    # 4. 设置 QEMU 支持多架构（包括 ARM64）
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    # 5. 设置 Docker Buildx（支持多平台构建）
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 6. 构建并推送 Docker 镜像
+    - name: Build 和 push Docker image (multi-arch)
       uses: docker/build-push-action@v5
       with:
-        context: .
-        file: ./docker/Dockerfile
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        context: 。  # 构建上下文目录
+        file: ./docker/Dockerfile  # 指定 Dockerfile 路径
+        push: ${{ github.event_name != 'pull_request' }}  # 如果不是 PR，则推送镜像
+        tags: ${{ steps.meta.outputs.tags }}  # 使用从 `docker/metadata-action` 获取的标签
+        labels: ${{ steps.meta.outputs.labels }}  # 使用从 `docker/metadata-action` 获取的标签
+        platforms: linux/amd64,linux/arm64  # 支持构建 x86_64 (amd64) 和 ARM64（arm64）架构

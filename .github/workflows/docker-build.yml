@@ -1,58 +1,41 @@
-name: Build 和 Push Docker image
+name: Build ARM64 Docker Image
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - 'v*'  # 监听以 'v' 开头的标签推送
-
-env:
-  # GitHub Container Registry
-  REGISTRY: ghcr.io
-  # GitHub repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest  # 使用 Ubuntu 作为运行环境
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-    # 1. 检出代码
-    - name: Check out code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # 获取所有历史，确保能访问到标签
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    # 2. 登录 GitHub Container Registry (GHCR)
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v2
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          curl -s https://github.com/docker/buildx/releases/download/v0.20.1/buildx-v0.20.1.linux-arm64 -o ~/.docker/cli-plugins/docker-buildx
+          chmod +x ~/.docker/cli-plugins/docker-buildx
 
-    # 3. 创建 Docker 镜像的元数据
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      - name: Configure APT sources to Aliyun mirrors
+        run: |
+          sudo echo "deb https://mirrors.aliyun.com/debian/ bookworm main contrib non-free" > /etc/apt/sources.list && \
+          sudo echo "deb https://mirrors.aliyun.com/debian-security/ bookworm-security main contrib non-free" >> /etc/apt/sources.list && \
+          sudo echo "deb https://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free" >> /etc/apt/sources.list && \
+          sudo apt-get clean && \
+          sudo apt-get update -y
 
-    # 4. 设置 QEMU 支持多架构（包括 ARM64）
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      - name: Build ARM64 Docker image
+        run: |
+          docker buildx create --use
+          docker buildx build --platform linux/arm64 -t my-python-app:latest .
 
-    # 5. 设置 Docker Buildx（支持多平台构建）
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    # 6. 构建并推送 Docker 镜像
-    - name: Build 和 push Docker image (multi-arch)
-      uses: docker/build-push-action@v5
-      with:
-        context: 。  # 构建上下文目录
-        file: ./docker/Dockerfile  # 指定 Dockerfile 路径
-        push: ${{ github.event_name != 'pull_request' }}  # 如果不是 PR，则推送镜像
-        tags: ${{ steps.meta.outputs.tags }}  # 使用从 `docker/metadata-action` 获取的标签
-        labels: ${{ steps.meta.outputs.labels }}  # 使用从 `docker/metadata-action` 获取的标签
-        platforms: linux/amd64,linux/arm64  # 支持构建 x86_64 (amd64) 和 ARM64（arm64）架构
+      - name: Push Docker image to Docker Hub (optional)
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker push my-python-app:latest

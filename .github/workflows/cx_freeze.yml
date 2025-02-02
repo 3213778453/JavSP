@@ -3,25 +3,29 @@ name: Cx_Freeze
 on:
   push:
     branches:
-    - master
+      - master
   pull_request:
     branches:
-    - master
+      - master
   workflow_dispatch:
 
 jobs:
   build:
     name: Build binaries on ARM64 platform
-    runs-on: ubuntu-22.04  # 选择适用于 ARM64 的 Ubuntu 版本
+    runs-on: ubuntu-22.04  # 使用支持 ARM64 架构的 Ubuntu 版本
 
     strategy:
       matrix:
         os: [ubuntu-22.04]  # 确保构建 ARM64 版本的 Ubuntu
+        architecture: [arm64]  # 强制在 ARM64 上构建
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'true'
+
+      - name: Check architecture
+        run: uname -m  # 确认当前架构
 
       - name: Fetch tags
         run: git fetch --prune --unshallow --tags
@@ -43,7 +47,7 @@ jobs:
           poetry install
 
       - name: Build with Cx_Freeze for ARM64
-        run: poetry run python setup.py build_exe -b dist
+        run: poetry run python setup.py build_exe -b dist  # 使用 cx_Freeze 构建
 
       - name: Set VERSION variable for ARM64
         shell: bash
@@ -54,4 +58,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: JavSP-${{ env.VERSION }}-arm64
-          path: dist
+          path: dist  # 上传构建的产物

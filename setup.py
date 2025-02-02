@@ -30,10 +30,10 @@ build_exe = {
     'excludes': ['unittest', 'tkinter', 'win32crypt'],  # 排除不需要的库（如 tkinter, win32crypt）
     'packages': packages,
     'optimize': 2,  # 优化生成的可执行文件（减少文件大小）
-    'build_exe': 'build_linux_arm64',  # 可以设置目标平台的特定输出文件夹
+    'build_exe': 'build_linux_arm64',  # 目标平台的特定输出文件夹
 }
 
-# 生成 Linux (ARM64) 可执行文件
+# 生成 ARM64 可执行文件
 javsp = Executable(
     script=os.path.join(proj_root, 'javsp', '__main__.py'),
     target_name='JavSP',  # 生成可执行文件名（不要加 .exe）

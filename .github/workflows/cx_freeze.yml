@@ -11,51 +11,61 @@ on:
 
 jobs:
   build:
-    name: Build binaries on ARM64 platform
-    runs-on: ubuntu-22.04  # 使用支持 ARM64 架构的 Ubuntu 版本
-
-    strategy:
-      matrix:
-        os: [ubuntu-22.04]  # 确保构建 ARM64 版本的 Ubuntu
-        architecture: [arm64]  # 强制在 ARM64 上构建
+    name: 使用 QEMU 构建 ARM64 二进制文件
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 检出代码库
+        uses: actions/checkout@v4
         with:
           submodules: 'true'
 
-      - name: Check architecture
-        run: uname -m  # 确认当前架构
+      - name: 设置 QEMU 以支持跨架构构建
+        run: |
+          echo "更新软件包列表..."
+          sudo apt-get update
+          echo "安装 QEMU 及相关工具..."
+          sudo apt-get install -y qemu qemu-user-static
 
-      - name: Fetch tags
-        run: git fetch --prune --unshallow --tags
+      - name: 启用 ARM64 架构的 binfmt
+        run: |
+          echo "启用 ARM64 架构..."
+          sudo update-binfmts --enable qemu-aarch64
 
-      - name: Install poetry
-        run: pipx install poetry
+      - name: 安装 Poetry
+        run: |
+          echo "安装 Poetry..."
+          pipx install poetry
 
-      - name: Setup Python 3.10
+      - name: 设置 Python 3.10 环境
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'poetry'
 
-      - name: Setup dynamic versioning
-        run: poetry self add poetry-dynamic-versioning
-
-      - name: Install dependencies
+      - name: 配置动态版本管理
         run: |
+          echo "配置 Poetry 动态版本管理..."
+          poetry self add poetry-dynamic-versioning
+
+      - name: 安装项目依赖
+        run: |
+          echo "安装项目所需的依赖..."
           poetry install
 
-      - name: Build with Cx_Freeze for ARM64
-        run: poetry run python setup.py build_exe -b dist  # 使用 cx_Freeze 构建
+      - name: 使用 Cx_Freeze 构建项目
+        run: |
+          echo "开始构建项目..."
+          poetry run python setup.py build_exe -b dist
 
-      - name: Set VERSION variable for ARM64
+      - name: 设置 VERSION 变量
         shell: bash
         run: |
+          echo "设置版本号变量..."
           echo "VERSION=`poetry run python tools/version.py`" >> $GITHUB_ENV
 
-      - name: Upload build artifact
+      - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: JavSP-${{ env.VERSION }}-arm64
-          path: dist  # 上传构建的产物
+          path: dist

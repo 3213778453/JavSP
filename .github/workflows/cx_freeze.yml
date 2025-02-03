@@ -6,8 +6,8 @@ on:
       - master
 
 jobs:
-  build:
-    name: 使用 QEMU 和 ARM64 Python 环境进行跨架构构建
+  qemu:
+    name: 使用 QEMU 进行跨架构构建
     runs-on: ubuntu-latest  # 使用 Ubuntu 环境运行该作业
 
     steps:
@@ -16,11 +16,10 @@ jobs:
         uses: actions/checkout@v4
 
       # 步骤 2: 设置 QEMU 支持 ARM64 架构
-      - name: 设置 QEMU 支持 ARM64
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu qemu-user-static
-          sudo update-binfmts --enable qemu-aarch64
+      - name: 设置 QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64  # 设置目标架构为 ARM64
 
       # 步骤 3: 使用 ARM64 架构的 Docker 镜像运行 Python 构建环境
       - name: 使用 QEMU 运行 ARM64 架构的 Python 环境
@@ -28,6 +27,7 @@ jobs:
           docker run --rm \
             -v $PWD:/workspace \
             -w /workspace \
+            --platform linux/arm64 \
             arm64v8/python:3.10 bash -c "
             pip install poetry && \
             poetry install && \

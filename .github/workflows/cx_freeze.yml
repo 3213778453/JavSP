@@ -6,40 +6,39 @@ on:
       - master
 
 jobs:
-  qemu:
-    name: 使用 QEMU 进行跨架构构建
-    runs-on: ubuntu-latest
+  build:
+    name: 使用 QEMU 和 ARM64 Python 环境进行跨架构构建
+    runs-on: ubuntu-latest  # 使用 Ubuntu 环境运行该作业
 
     steps:
-      # 检出代码
+      # 步骤 1: 检出代码
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # 设置 QEMU 环境
-      - name: 设置 QEMU
-        uses: docker/setup-qemu-action@v3
-
-      # 安装 Poetry
-      - name: 安装 Poetry
-        run: pipx install poetry
-
-      # 设置 Python 环境
-      - name: 设置 Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      # 安装依赖
-      - name: 安装依赖
+      # 步骤 2: 设置 QEMU 支持 ARM64 架构
+      - name: 设置 QEMU 支持 ARM64
         run: |
-          poetry install
+          sudo apt-get update
+          sudo apt-get install -y qemu qemu-user-static
+          sudo update-binfmts --enable qemu-aarch64
 
-      # 构建项目
-      - name: 使用 Cx_Freeze 构建
+      # 步骤 3: 使用 ARM64 架构的 Docker 镜像运行 Python 构建环境
+      - name: 使用 QEMU 运行 ARM64 架构的 Python 环境
         run: |
-          poetry run python setup.py build_exe -b dist
+          docker run --rm \
+            -v $PWD:/workspace \
+            -w /workspace \
+            arm64v8/python:3.10 bash -c "
+            pip install poetry && \
+            poetry install && \
+            poetry run python setup.py build_exe -b dist"
 
-      # 上传构建产物
+      # 步骤 4: 使用 file 命令检查生成的二进制文件架构
+      - name: 检查构建产物架构
+        run: |
+          file dist/JavSP
+
+      # 步骤 5: 上传构建产物
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:

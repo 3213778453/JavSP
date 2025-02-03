@@ -1,4 +1,4 @@
-name: Cx_Freeze
+name: Build for ARM64 with QEMU on Debian
 
 on:
   push:
@@ -11,61 +11,37 @@ on:
 
 jobs:
   build:
-    name: 使用 QEMU 构建 ARM64 二进制文件
-    runs-on: ubuntu-latest
+    name: Build binaries for ARM64 with QEMU on Debian
+    runs-on: ubuntu-latest  # 使用适合的操作系统环境，如 Ubuntu 或 Debian
 
     steps:
-      - name: 检出代码库
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: 'true'
 
-      - name: 设置 QEMU 以支持跨架构构建
+      - name: Set up QEMU for cross-architecture
         run: |
-          echo "更新软件包列表..."
           sudo apt-get update
-          echo "安装 QEMU 及相关工具..."
           sudo apt-get install -y qemu qemu-user-static
-
-      - name: 启用 ARM64 架构的 binfmt
-        run: |
-          echo "启用 ARM64 架构..."
           sudo update-binfmts --enable qemu-aarch64
 
-      - name: 安装 Poetry
-        run: |
-          echo "安装 Poetry..."
-          pipx install poetry
+      - name: Install Poetry
+        run: pipx install poetry
 
-      - name: 设置 Python 3.10 环境
+      - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'poetry'
 
-      - name: 配置动态版本管理
+      - name: Install dependencies
         run: |
-          echo "配置 Poetry 动态版本管理..."
-          poetry self add poetry-dynamic-versioning
-
-      - name: 安装项目依赖
-        run: |
-          echo "安装项目所需的依赖..."
           poetry install
 
-      - name: 使用 Cx_Freeze 构建项目
+      - name: Build with Cx_Freeze
         run: |
-          echo "开始构建项目..."
           poetry run python setup.py build_exe -b dist
 
-      - name: 设置 VERSION 变量
-        shell: bash
-        run: |
-          echo "设置版本号变量..."
-          echo "VERSION=`poetry run python tools/version.py`" >> $GITHUB_ENV
-
-      - name: 上传构建产物
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JavSP-${{ env.VERSION }}-arm64
+          name: javsp-arm64
           path: dist

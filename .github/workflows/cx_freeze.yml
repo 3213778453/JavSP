@@ -21,24 +21,30 @@ jobs:
         with:
           platforms: linux/arm64  # 设置目标架构为 ARM64
 
-      # 步骤 3: 使用 ARM64 架构的 Docker 镜像运行 Python 构建环境
-      - name: 使用 QEMU 运行 ARM64 架构的 Python 环境
+      # 步骤 3: 安装构建工具，包括 cmake
+      - name: 安装构建工具
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      # 步骤 4: 使用 ARM64 架构的 Docker 镜像运行 Python 环境
+      - name: 使用 ARM64 架构的 Python 镜像
         run: |
           docker run --rm \
             -v $PWD:/workspace \
             -w /workspace \
             --platform linux/arm64 \
-            arm64v8/python:3.10 bash -c "
+            python:3.12-slim bash -c "
             pip install poetry && \
             poetry install && \
             poetry run python setup.py build_exe -b dist"
 
-      # 步骤 4: 使用 file 命令检查生成的二进制文件架构
+      # 步骤 5: 使用 file 命令检查生成的二进制文件架构
       - name: 检查构建产物架构
         run: |
           file dist/JavSP
 
-      # 步骤 5: 上传构建产物
+      # 步骤 6: 上传构建产物
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:

@@ -32,7 +32,9 @@ jobs:
             apt-get update && \
             apt-get install -y cmake build-essential && \
             pip install poetry && \
+            poetry lock && \
             poetry install && \
+          
             poetry run python setup.py build_exe -b dist"  # 执行构建
 
       # 步骤 4: 使用 file 命令检查生成的二进制文件架构
